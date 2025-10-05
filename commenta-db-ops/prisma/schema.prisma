@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  userId              String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username            String  @unique @db.VarChar(100)
+  email               String  @unique @db.VarChar(255)
+  channelId           String? @unique @db.VarChar(100)   // <-- made nullable
+  channelName         String? @db.VarChar(255)
+  channelThumbnailUrl String? @db.Text
+  subscriberCount     Int     @default(0)
+
+  accessToken    String?   @db.Text
+  refreshToken   String?   @db.Text
+  tokenExpiresAt DateTime? @db.Timestamp(6)
+
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  updatedAt DateTime @default(now()) @db.Timestamp(6)
+
+  // Relations
+  videos            Video[]
+  comments          Comment[]
+  commentReplies    CommentReply[]
+  mcpConvos         McpConversation[]
+  analysisJobs      AnalysisJob[]
+  sentimentAnalysis SentimentAnalysis[]
+  videoSummaries    VideoAnalysisSummary[]
+
+  @@index([email])
+  @@index([username])
+  @@index([channelId])
+}
+
+
+model Video {
+  videoId        String    @id @db.VarChar(50)
+  userId         String    @db.Uuid
+  title          String    @db.VarChar(500)
+  description    String?   @db.Text
+  thumbnailUrl   String?   @db.Text
+  publishedAt    DateTime? @db.Timestamp(6)
+  analysisStatus String    @default("pending") @db.VarChar(20)
+  createdAt      DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime  @default(now()) @db.Timestamp(6)
+
+  // Relations
+  user              User                   @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  comments          Comment[]
+  mcpConvos         McpConversation[]
+  analysisJobs      AnalysisJob[]
+  sentimentAnalysis SentimentAnalysis[]
+  videoSummaries    VideoAnalysisSummary[]
+
+  @@index([userId])
+  @@index([analysisStatus])
+  @@index([createdAt])
+}
+
+model Comment {
+  commentId       String    @id @db.VarChar(100)
+  videoId         String    @db.VarChar(50)
+  userId          String    @db.Uuid
+  authorName      String?   @db.VarChar(255)
+  authorChannelId String?   @db.VarChar(100)
+  commentText     String    @db.Text
+  publishedAt     DateTime? @db.Timestamp(6)
+  parentCommentId String?   @db.VarChar(100)
+  isReply         Boolean   @default(false)
+  replyCount      Int       @default(0)
+  likeCount       Int       @default(0)
+  createdAt       DateTime  @default(now()) @db.Timestamp(6)
+
+  // Relations
+  video             Video               @relation(fields: [videoId], references: [videoId], onDelete: Cascade)
+  user              User                @relation(fields: [userId], references: [userId])
+  parentComment     Comment?            @relation("CommentReplies", fields: [parentCommentId], references: [commentId])
+  replies           Comment[]           @relation("CommentReplies")
+  commentReplies    CommentReply[]
+  sentimentAnalysis SentimentAnalysis[]
+
+  @@index([videoId])
+  @@index([parentCommentId])
+  @@index([publishedAt])
+}
+
+model McpConversation {
+  conversationId String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  videoId        String   @db.VarChar(50)
+  userId         String   @db.Uuid
+  userQuery      String   @db.Text
+  aiResponse     String   @db.Text
+  createdAt      DateTime @default(now()) @db.Timestamp(6)
+
+  // Relations
+  user  User  @relation(fields: [userId], references: [userId])
+  video Video @relation(fields: [videoId], references: [videoId])
+
+  @@index([videoId])
+  @@index([userId])
+}
+
+model CommentReply {
+  replyId        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  commentId      String    @db.VarChar(100)
+  userId         String    @db.Uuid
+  replyText      String    @db.Text
+  replyStatus    String    @default("draft") @db.VarChar(20)
+  youtubeReplyId String?   @db.VarChar(100)
+  createdAt      DateTime  @default(now()) @db.Timestamp(6)
+  postedAt       DateTime?
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [userId])
+  comment Comment @relation(fields: [commentId], references: [commentId])
+
+  @@index([commentId])
+  @@index([userId])
+  @@index([replyStatus])
+}
+
+model AnalysisJob {
+  jobId            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  videoId          String    @db.VarChar(50)
+  userId           String    @db.Uuid
+  jobStatus        String    @default("queued") @db.VarChar(20)
+  commentsFetched  Int       @default(0)
+  commentsAnalyzed Int       @default(0)
+  currentBatch     Int       @default(0)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now()) @db.Timestamp(6)
+
+  // Relations
+  video Video @relation(fields: [videoId], references: [videoId])
+  user  User  @relation(fields: [userId], references: [userId])
+
+  @@index([videoId])
+  @@index([userId])
+  @@index([jobStatus])
+  @@index([createdAt])
+}
+
+model SentimentAnalysis {
+  analysisId      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  commentId       String   @db.VarChar(100)
+  userId          String   @db.Uuid
+  videoId         String   @db.VarChar(50)
+  sentiment       String   @db.VarChar(20)
+  sentimentScore  Float?
+  isControversial Boolean  @default(false)
+  isHilarious     Boolean  @default(false)
+  isQuestion      Boolean  @default(false)
+  isAnswer        Boolean  @default(false)
+  isSuggestion    Boolean  @default(false)
+  analyzedAt      DateTime @default(now()) @db.Timestamp(6)
+  replyCount      Int      @default(0)
+  likeCount       Int      @default(0)
+
+  // Relations
+  comment Comment @relation(fields: [commentId], references: [commentId])
+  video   Video   @relation(fields: [videoId], references: [videoId])
+  user    User    @relation(fields: [userId], references: [userId])
+
+  @@index([commentId])
+  @@index([videoId])
+  @@index([sentiment])
+  @@index([sentimentScore])
+  @@index([userId])
+}
+model VideoAnalysisSummary {
+  summaryId          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  videoId            String   @unique @db.VarChar(50)
+  userId             String   @db.Uuid
+  totalComments      Int      @default(0)
+  positiveCount      Int      @default(0)
+  negativeCount      Int      @default(0)
+  neutralCount       Int      @default(0)
+  controversialCount Int      @default(0)
+  hilariousCount     Int      @default(0)
+  questionCount      Int      @default(0)
+  answerCount        Int      @default(0)
+  suggestionCount    Int      @default(0)
+  summaryText        String?  @db.Text
+  createdAt          DateTime @default(now()) @db.Timestamp(6)
+
+  // Relations
+  video Video @relation(fields: [videoId], references: [videoId])
+  user  User  @relation(fields: [userId], references: [userId])
+
+  @@index([videoId])
+  @@index([userId])
+}

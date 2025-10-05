@@ -1,0 +1,44 @@
+# =====================================
+# 🔐 ENVIRONMENT VARIABLES
+# =====================================
+.env
+**/.env
+!.env.example
+
+# =====================================
+# 📦 DEPENDENCIES
+# =====================================
+node_modules/
+**/node_modules/
+
+# =====================================
+# 🐳 DOCKER
+# =====================================
+*.pid
+*.log
+*.data
+*.bak
+*.cache
+*.tmp
+docker-compose.override.yml
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# =====================================
+# 🧱 BUILD OUTPUT
+# =====================================
+dist/
+build/
+out/
+coverage/
+*.tsbuildinfo
+
+# =====================================
+# 💻 EDITOR / SYSTEM FILES
+# =====================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
